@@ -17,7 +17,7 @@ int     baseline=0;
 int     bestNumberOfthread=-1;
 int     maxThread=20;
 int     nbMinThread=1;
-
+// Compute mean and variance for each line in an image using parallelLoopBody
 class ParallelMeanLine: public cv::ParallelLoopBody
 {
 private:
@@ -137,8 +137,10 @@ int main (int argc,char **argv)
     // Look for otpimum using different image sizes
     for (int indZoom = zoom.size()-1;indZoom>=1;indZoom--)
     {
+        cout<<" Compute mean and variance for each line in an image using parallelLoopBody\n";
         Mat mz;
         resize(m, mz, Size(),zoom[indZoom],zoom[indZoom]);
+        cout<< "Image of size"<<mz.size()<<"\n";
         waitKey(1);
         vector<vector<double> > mean;
         vector<vector<double> > std;
@@ -159,14 +161,15 @@ int main (int argc,char **argv)
             std[nthreads].resize(r.rows);
             ParallelMeanLine x(r,mean[nthreads],std[nthreads]);
             setNumThreads(nthreads);
-            int64 tpsIni = getTickCount();
+            TickMeter chronometer;
+            chronometer.start();
             for (int k = 0; k < nbTest; k++)
             {
                 parallel_for_(cv::Range(0,r.rows-1), x,nthreads);
             }
-            int64  tpsFin = getTickCount();
-            tps[nthreads]=(tpsFin - tpsIni) / cvGetTickFrequency()/nbTest;
-            cout << "For " << nthreads << " thread times is " << tps[nthreads] << "\n";
+            chronometer.stop();
+            tps[nthreads]= chronometer.getTimeMilli()/nbTest;
+            cout << "For " << nthreads << " thread times is " << tps[nthreads] << "ms\n";
             cout << "*****************************************************************************************\n";
        
             if (tps[nthreads] < bestTime)
@@ -178,7 +181,7 @@ int main (int argc,char **argv)
                maxTime=tps[nthreads];
 
         }
-        DrawResults(curve,tps,format("%d",r.rows*r.cols), maxTime, bestNumberOfthread);
+        DrawResults(curve,tps,format("%d px",r.rows*r.cols), maxTime, bestNumberOfthread);
 
         bool test=true;
         for (int nthreads = nbMinThread+1; nthreads < maxThread; nthreads++)
